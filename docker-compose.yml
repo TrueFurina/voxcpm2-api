@@ -1,0 +1,10 @@
+services:
+  voxcpm2-api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      VOXCPM2_API_HOST: 0.0.0.0
+      VOXCPM2_API_PORT: 8000

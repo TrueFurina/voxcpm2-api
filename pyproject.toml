@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxcpm2-api"
+version = "0.1.0"
+description = "Cross-platform FastAPI + WebSocket service for VoxCPM2 synthesis"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "AGPL-3.0-only" }
+authors = [
+  { name = "Shiftbloom Studio" }
+]
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "pydantic-settings>=2.4,<3.0",
+  "numpy>=1.26,<3.0"
+]
+
+[project.optional-dependencies]
+voxcpm = [
+  "voxcpm"
+]
+nanovllm = [
+  "nano-vllm-voxcpm"
+]
+dev = [
+  "httpx>=0.27,<1.0",
+  "pytest>=8.3,<9.0",
+  "ruff>=0.6,<1.0"
+]
+
+[project.scripts]
+voxcpm2-api = "voxcpm2_api.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
