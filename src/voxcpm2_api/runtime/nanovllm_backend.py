@@ -102,15 +102,20 @@ class NanoVLLMBackend(SynthesisBackend):
 
             from nanovllm_voxcpm import VoxCPM
 
-            server = VoxCPM.from_pretrained(
-                model=self._settings.model_source,
-                devices=self._settings.nanovllm_devices,
-                inference_timesteps=10,
-                max_num_batched_tokens=self._settings.nanovllm_max_num_batched_tokens,
-                max_num_seqs=self._settings.nanovllm_max_num_seqs,
-                max_model_len=self._settings.nanovllm_max_model_len,
-                gpu_memory_utilization=self._settings.nanovllm_gpu_memory_utilization,
-            )
+            settings = self._settings
+
+            def _load():
+                return VoxCPM.from_pretrained(
+                    model=settings.model_source,
+                    devices=settings.nanovllm_devices,
+                    inference_timesteps=10,
+                    max_num_batched_tokens=settings.nanovllm_max_num_batched_tokens,
+                    max_num_seqs=settings.nanovllm_max_num_seqs,
+                    max_model_len=settings.nanovllm_max_model_len,
+                    gpu_memory_utilization=settings.nanovllm_gpu_memory_utilization,
+                )
+
+            server = await asyncio.to_thread(_load)
             wait_for_ready = getattr(server, "wait_for_ready", None)
             if wait_for_ready is not None:
                 await wait_for_ready()

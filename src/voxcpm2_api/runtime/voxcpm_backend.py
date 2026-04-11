@@ -66,7 +66,7 @@ class VoxCPMBackend(SynthesisBackend):
     ) -> AsyncIterator[StreamChunk]:
         model = await self._ensure_model()
         loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[StreamChunk | Exception | None] = asyncio.Queue()
+        queue: asyncio.Queue[StreamChunk | Exception | None] = asyncio.Queue(maxsize=4)
 
         def _worker() -> None:
             try:
@@ -80,10 +80,12 @@ class VoxCPMBackend(SynthesisBackend):
                         sequence=sequence,
                         waveform=to_numpy_audio(chunk),
                     )
-                    loop.call_soon_threadsafe(queue.put_nowait, payload)
-                loop.call_soon_threadsafe(queue.put_nowait, None)
+                    future = asyncio.run_coroutine_threadsafe(queue.put(payload), loop)
+                    future.result()
+                future = asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+                future.result()
             except Exception as exc:  # pragma: no cover - surfaced to caller
-                loop.call_soon_threadsafe(queue.put_nowait, exc)
+                asyncio.run_coroutine_threadsafe(queue.put(exc), loop).result()
 
         threading.Thread(target=_worker, daemon=True).start()
 

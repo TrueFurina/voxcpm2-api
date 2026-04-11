@@ -20,6 +20,17 @@ from voxcpm2_api.schemas import (
 from voxcpm2_api.service import prepare_audio_assets
 
 
+def _apply_synthesis_defaults(request: SynthesisRequest, settings: Settings) -> SynthesisRequest:
+    updates: dict[str, object] = {}
+    if "language" not in request.model_fields_set:
+        updates["language"] = settings.default_language
+    if "response_format" not in request.model_fields_set:
+        updates["response_format"] = settings.default_response_format
+    if not updates:
+        return request
+    return request.model_copy(update=updates)
+
+
 def create_app(
     settings: Settings | None = None,
     orchestrator: RuntimeOrchestrator | None = None,
@@ -40,10 +51,12 @@ def create_app(
             await runtime.close()
 
     app = FastAPI(title=resolved_settings.api_title, lifespan=lifespan)
+    cors_origins = resolved_settings.cors_origins
+    allow_credentials = "*" not in cors_origins
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=resolved_settings.cors_origins,
-        allow_credentials=True,
+        allow_origins=cors_origins,
+        allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -61,6 +74,7 @@ def create_app(
     @app.post("/v1/speech", responses={503: {"model": ErrorEnvelope}})
     async def synthesize(request: SynthesisRequest):
         settings: Settings = app.state.settings
+        request = _apply_synthesis_defaults(request, settings)
         if len(request.text) > settings.max_text_chars:
             return JSONResponse(
                 status_code=422,
@@ -69,7 +83,13 @@ def create_app(
                 ).model_dump(),
             )
 
-        assets = prepare_audio_assets(request)
+        try:
+            assets = prepare_audio_assets(request)
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorEnvelope(error="validation_error", detail=str(exc)).model_dump(),
+            )
         try:
             result = await app.state.runtime.synthesize(request, assets)
         except RuntimeError as exc:
@@ -102,10 +122,18 @@ def create_app(
     @app.websocket("/v1/stream")
     async def websocket_stream(websocket: WebSocket) -> None:
         await websocket.accept()
+        disconnected = False
         try:
             payload = await websocket.receive_json()
             request = StreamingSynthesisRequest.model_validate(payload)
-            assets = prepare_audio_assets(request)
+            request = _apply_synthesis_defaults(request, app.state.settings)
+            try:
+                assets = prepare_audio_assets(request)
+            except ValueError as exc:
+                await websocket.send_json(
+                    {"type": "error", "error": "validation_error", "detail": str(exc)}
+                )
+                return
             try:
                 runtime_snapshot = app.state.runtime.runtime_snapshot(request)
                 await websocket.send_json(
@@ -143,9 +171,13 @@ def create_app(
                 {"type": "error", "error": "runtime_unavailable", "detail": str(exc)}
             )
         except WebSocketDisconnect:
-            return
+            disconnected = True
         finally:
-            await websocket.close()
+            if not disconnected:
+                try:
+                    await websocket.close()
+                except RuntimeError:
+                    pass
 
     return app
 
