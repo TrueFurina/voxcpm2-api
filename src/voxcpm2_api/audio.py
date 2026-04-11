@@ -37,6 +37,14 @@ def waveform_to_base64(waveform: Any, sample_rate: int) -> str:
     return base64.b64encode(waveform_to_wav_bytes(waveform, sample_rate)).decode("ascii")
 
 
+def decode_base64_audio(b64: str) -> bytes:
+    """Decode a base64-encoded audio blob back to raw bytes."""
+    try:
+        return base64.b64decode(b64, validate=True)
+    except Exception as exc:
+        raise ValueError("audio_base64 must be valid base64-encoded audio data") from exc
+
+
 def waveform_chunk_to_base64(waveform: Any, chunk_format: str, sample_rate: int) -> str:
     if chunk_format == "wav":
         payload = waveform_to_wav_bytes(waveform, sample_rate)

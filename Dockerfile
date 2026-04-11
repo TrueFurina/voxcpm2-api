@@ -8,7 +8,14 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 
-RUN pip install --no-cache-dir .
+ARG INSTALL_EXTRAS=voxcpm
+
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    if [ -n "${INSTALL_EXTRAS}" ]; then \
+        python -m pip install --no-cache-dir ".[${INSTALL_EXTRAS}]"; \
+    else \
+        python -m pip install --no-cache-dir .; \
+    fi
 
 EXPOSE 8000
 

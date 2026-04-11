@@ -27,7 +27,12 @@ class NanoVLLMBackend(SynthesisBackend):
         self._settings = settings
         self._hardware = hardware
         self._server = None
-        self._load_lock = asyncio.Lock()
+        self._load_lock: asyncio.Lock | None = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._load_lock is None:
+            self._load_lock = asyncio.Lock()
+        return self._load_lock
 
     def availability(self) -> BackendAvailability:
         if not self._settings.allow_nanovllm:
@@ -96,7 +101,7 @@ class NanoVLLMBackend(SynthesisBackend):
         if self._server is not None:
             return self._server
 
-        async with self._load_lock:
+        async with self._get_lock():
             if self._server is not None:
                 return self._server
 

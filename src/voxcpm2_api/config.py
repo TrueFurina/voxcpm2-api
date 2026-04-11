@@ -7,6 +7,15 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _cuda_available() -> bool:
+    """Check for CUDA without importing torch at module level."""
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except Exception:
+        return False
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="VOXCPM2_",
@@ -26,7 +35,7 @@ class Settings(BaseSettings):
     hf_endpoint: str | None = None
     local_files_only: bool = False
     load_denoiser: bool = False
-    optimize_model: bool = True
+    optimize_model: bool = Field(default_factory=_cuda_available)
     startup_load_model: bool = False
 
     prefer_backend: Literal["auto", "voxcpm", "nanovllm"] = "auto"
@@ -38,6 +47,7 @@ class Settings(BaseSettings):
     default_stream_chunk_format: Literal["pcm16", "wav"] = "pcm16"
     default_normalize_text: bool = False
     default_denoise_conditioning_audio: bool = False
+    default_retry_badcase: bool = True
     sample_rate_fallback: int = 48000
     max_text_chars: int = 4000
 

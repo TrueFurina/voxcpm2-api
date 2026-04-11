@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import base64
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from voxcpm2_api.audio import decode_base64_audio
 from voxcpm2_api.schemas import SynthesisRequest
 
 
@@ -35,7 +35,7 @@ def prepare_audio_assets(request: SynthesisRequest) -> PreparedAudioAssets:
 
 
 def _write_temp_wav(raw_base64: str, temp_paths: list[Path]) -> str:
-    payload = base64.b64decode(raw_base64)
+    payload = decode_base64_audio(raw_base64)
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     try:
         temp_file.write(payload)

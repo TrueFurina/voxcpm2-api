@@ -1,26 +1,46 @@
 # VoxCPM2 API
 
-Cross-platform FastAPI service for VoxCPM2 with:
+[![CI](https://github.com/fabianzimber/voxcpm2-api/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianzimber/voxcpm2-api/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/fabianzimber/voxcpm2-api)](https://github.com/fabianzimber/voxcpm2-api/releases)
 
-- REST synthesis endpoint for full WAV responses
-- WebSocket streaming endpoint for low-latency chunk delivery
-- automatic backend selection for Linux CUDA, Apple Silicon, and CPU-only hosts
-- optional Nano-vLLM acceleration on Linux + NVIDIA GPUs
-- request fields that already leave room for prompt continuation, reference audio, and future multilingual expansion
+Production-ready FastAPI and WebSocket service for [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2), with:
 
-## Backend strategy
+- REST synthesis via `/v1/speech`
+- streaming synthesis via `/v1/stream`
+- optional transcription via `/v1/transcribe`
+- Linux CUDA auto-selection for `nano-vllm-voxcpm`
+- official `voxcpm` backend support for prompt and reference audio
+- macOS Apple Silicon compatibility patches for VoxCPM2 CPU inference
+- a matching Tauri desktop client released alongside the API
 
-The service keeps one API shape and swaps runtimes underneath it:
+## Release Artifacts
 
-- **Linux + NVIDIA CUDA** → prefers `nano-vllm-voxcpm` for plain text synthesis
-- **Windows / macOS / generic Linux** → uses the official `voxcpm` Python package
-- **Prompt / reference audio requests** → always route to the official `voxcpm` backend because that public API already exposes `prompt_wav_path`, `prompt_text`, and `reference_wav_path`
+Every tagged release publishes three separate artifact families:
 
-Apple Silicon support currently means **PyTorch MPS**, not ANE. The public ANE project does not support VoxCPM2 yet, so this service does not pretend otherwise.
+- `voxcpm2_api-<version>-py3-none-any.whl`
+  The API package with FastAPI, WebSocket endpoints, Docker support, and the built-in compatibility layer.
+- `voxcpm2_compat-<version>-py3-none-any.whl`
+  The standalone compatibility wrapper for custom Python integrations that need the macOS and CPU safety patches without the API service.
+- `VoxCPM2-ui-macos-<tag>-<arch>.zip`
+  The Tauri desktop application bundle for macOS.
 
-## Quickstart
+## Installation
 
-### Local dev
+### From a GitHub release wheel
+
+Install the API directly from a release asset:
+
+```bash
+pip install "voxcpm2-api[voxcpm] @ https://github.com/fabianzimber/voxcpm2-api/releases/download/v0.2.0/voxcpm2_api-0.2.0-py3-none-any.whl"
+```
+
+If you only want the compatibility wrapper for your own VoxCPM2 code:
+
+```bash
+pip install "voxcpm2-compat @ https://github.com/fabianzimber/voxcpm2-api/releases/download/v0.2.0/voxcpm2_compat-0.2.0-py3-none-any.whl"
+```
+
+### From source
 
 ```bash
 python3 -m venv .venv
@@ -30,58 +50,73 @@ cp .env.example .env
 voxcpm2-api
 ```
 
-Use Python **3.10-3.12**. VoxCPM2 does not support 3.13+ yet.
-
-The helper script does the same bootstrapping:
+The helper scripts do the same:
 
 ```bash
 ./scripts/bootstrap.sh
 ./scripts/run-dev.sh
 ```
 
-### Linux CUDA fast path
-
-Install both optional runtimes if you want Nano-vLLM auto-selection:
-
-```bash
-pip install -e ".[voxcpm,nanovllm]"
-```
-
-Nano-vLLM still requires its upstream CUDA prerequisites such as `flash-attn`.
-
 ### Docker
+
+The default Docker image now installs the official `voxcpm` backend automatically.
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
+## Backend Strategy
+
+The service keeps one API surface and swaps runtimes underneath it:
+
+- Linux + NVIDIA CUDA: prefers `nano-vllm-voxcpm` for plain text synthesis
+- macOS, Windows, generic Linux, or conditioned requests: uses the official `voxcpm` Python package
+- prompt or reference audio requests: always route to the official `voxcpm` backend
+
+### macOS / Apple Silicon
+
+VoxCPM2 is currently safest on macOS when it runs on CPU:
+
+- MPS is disabled because VoxCPM2 uses `bfloat16` and the public runtime is not stable on Apple MPS
+- the API patches PyTorch `scaled_dot_product_attention` for the exact CPU decoding path used by VoxCPM2
+- OpenMP duplicate-library crashes are suppressed for mixed native dependency stacks
+
+These patches are built into `voxcpm2-api` and published separately as `voxcpm2-compat`.
+
 ## Configuration
 
-All runtime config is environment-driven.
+All runtime configuration is environment-driven.
 
 Important variables:
 
-- `VOXCPM2_MODEL_ID` — default `openbmb/VoxCPM2`
-- `VOXCPM2_MODEL_PATH` — local model directory override
-- `VOXCPM2_PREFER_BACKEND` — `auto`, `voxcpm`, or `nanovllm`
-- `VOXCPM2_LOAD_DENOISER` — enable official denoiser loading
-- `VOXCPM2_LOCAL_FILES_ONLY` — force offline model loading
-- `VOXCPM2_HF_ENDPOINT` — custom Hugging Face mirror endpoint
-- `VOXCPM2_NANOVLLM_DEVICES` — comma-separated CUDA device ids
+- `VOXCPM2_MODEL_ID`
+- `VOXCPM2_MODEL_PATH`
+- `VOXCPM2_MODEL_CACHE_DIR`
+- `VOXCPM2_PREFER_BACKEND`
+- `VOXCPM2_LOAD_DENOISER`
+- `VOXCPM2_OPTIMIZE_MODEL`
+- `VOXCPM2_LOCAL_FILES_ONLY`
+- `VOXCPM2_STARTUP_LOAD_MODEL`
+- `VOXCPM2_HF_ENDPOINT`
+- `VOXCPM2_CORS_ORIGINS`
+- `VOXCPM2_NANOVLLM_DEVICES`
+
+See [`./.env.example`](./.env.example) for the full template.
 
 ## API
 
-### Health and runtime inspection
+### Health
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/api/status
 curl http://localhost:8000/v1/runtime
 ```
 
-### REST synthesis
+### Synthesis
 
-Return WAV directly:
+Return WAV:
 
 ```bash
 curl -X POST http://localhost:8000/v1/speech \
@@ -90,7 +125,7 @@ curl -X POST http://localhost:8000/v1/speech \
   --output out.wav
 ```
 
-Return JSON with base64 audio:
+Return base64:
 
 ```bash
 curl -X POST http://localhost:8000/v1/speech \
@@ -98,7 +133,7 @@ curl -X POST http://localhost:8000/v1/speech \
   -d '{"text":"Hello from VoxCPM2","response_format":"base64"}'
 ```
 
-Prompt continuation request shape:
+Prompt continuation:
 
 ```json
 {
@@ -110,11 +145,15 @@ Prompt continuation request shape:
 }
 ```
 
-### WebSocket streaming
+### Streaming
 
-Connect to `/v1/stream`, send one JSON request, then read `session.started`, repeated `audio.chunk`, and final `audio.completed` frames.
+Connect to `/v1/stream`, send one JSON request, then read:
 
-Example request:
+- `session.started`
+- repeated `audio.chunk`
+- `audio.completed`
+
+Example payload:
 
 ```json
 {
@@ -123,15 +162,40 @@ Example request:
 }
 ```
 
-## Testing
+### Transcription
+
+```bash
+curl -X POST http://localhost:8000/v1/transcribe \
+  -H 'Content-Type: application/json' \
+  -d '{"audio_base64":"<wav-as-base64>"}'
+```
+
+## Desktop Client
+
+The repository also contains a Tauri desktop app in [`./voxcpm2-ui`](./voxcpm2-ui). Tagged releases attach a macOS bundle ZIP so the UI can be downloaded without building Rust locally.
+
+Local development:
+
+```bash
+cd voxcpm2-ui/src-tauri
+cargo tauri dev
+```
+
+## Testing and Release
 
 ```bash
 . .venv/bin/activate
 pytest
+ruff check .
+./scripts/build-release.sh
 ```
 
-## Notes for agent integration
+CI runs on GitHub Actions for Linux and macOS. Tagged releases automatically publish:
 
-- WAV REST responses are easiest for standard TTS clients.
-- JSON/base64 REST responses are easier for browser agents and tool-driven orchestrators.
-- WebSocket chunk frames include backend, device, sample rate, and chunk sequence so a realtime client can adapt buffering logic without out-of-band metadata.
+- the API wheel and sdist
+- the standalone compatibility wheel and sdist
+- the macOS Tauri desktop bundle
+
+## License
+
+AGPL-3.0-only. See [`./LICENSE`](./LICENSE).

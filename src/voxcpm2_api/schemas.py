@@ -15,12 +15,21 @@ class SynthesisRequest(BaseModel):
     prompt_audio_base64: str | None = None
     reference_audio_path: str | None = None
     reference_audio_base64: str | None = None
-    cfg_value: float = 2.0
-    inference_timesteps: int = 10
-    min_len: int = 2
-    max_len: int = 4096
+    cfg_value: float = Field(default=2.0, ge=0.0)
+    inference_timesteps: int = Field(default=10, ge=1)
+    min_len: int = Field(
+        default=2,
+        deprecated=True,
+        description="Legacy field retained for backwards compatibility. Ignored by VoxCPM2.",
+    )
+    max_len: int = Field(
+        default=4096,
+        deprecated=True,
+        description="Legacy field retained for backwards compatibility. Ignored by VoxCPM2.",
+    )
     normalize_text: bool | None = None
     denoise_conditioning_audio: bool | None = None
+    retry_badcase: bool | None = None
     response_format: Literal["wav", "base64"] = "wav"
 
     @model_validator(mode="after")
@@ -68,6 +77,25 @@ class SynthesisResponse(BaseModel):
     sample_rate: int
     audio_base64: str
     language: str
+
+
+class TranscribeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    audio_base64: str = Field(min_length=1)
+    language: str | None = None
+
+
+class TranscribeSegment(BaseModel):
+    start: float
+    end: float
+    text: str
+
+
+class TranscribeResponse(BaseModel):
+    text: str
+    language: str
+    segments: list[TranscribeSegment]
 
 
 class ErrorEnvelope(BaseModel):

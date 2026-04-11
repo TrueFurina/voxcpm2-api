@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: macos-latest
+            python-version: "3.14"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Test
+        run: python -m pytest -q
+
+      - name: Build API distributions
+        run: python -m build
+
+      - name: Build compat distributions
+        run: python -m build packages/voxcpm2-compat --outdir dist
+
+      - name: Twine check
+        run: python -m twine check dist/*
+
+  tauri-smoke:
+    name: Tauri Smoke (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./voxcpm2-ui/src-tauri -> target"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked --version "^2.0"
+
+      - name: Build desktop bundle
+        working-directory: voxcpm2-ui/src-tauri
+        run: cargo tauri build --bundles app

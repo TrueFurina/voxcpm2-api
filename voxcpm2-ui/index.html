@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoxCPM2</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0c;
+      --surface: #111114;
+      --border:  #1e1e24;
+      --accent:  #a78bfa;
+      --accent2: #8b6ff0;
+      --text:    #e4e4ec;
+      --muted:   #55556a;
+      --ok:      #34d399;
+      --err:     #f87171;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Titlebar ───────────────────────────────── */
+    .bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    .bar * { -webkit-app-region: no-drag; }
+    .bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+    .bar .dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+    .bar .dot.err { background: var(--err); }
+    .bar .title { font-size: 13px; font-weight: 700; letter-spacing: -0.3px; }
+    .bar .title span { color: var(--accent); }
+    .bar .status { font-size: 10px; color: var(--muted); margin-left: 4px; }
+    .bar .spacer { flex: 1; }
+    .bar input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 3px 8px; border-radius: 5px; font-size: 11px; width: 180px; outline: none;
+    }
+    .bar input:focus { border-color: var(--accent); }
+    .bar button {
+      background: var(--border); color: var(--muted); border: none;
+      padding: 3px 10px; border-radius: 5px; font-size: 11px; cursor: pointer;
+    }
+    .bar button:hover { color: var(--text); }
+
+    /* ── Content ────────────────────────────────── */
+    .content {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px 20px;
+      gap: 20px;
+      max-width: 560px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── Dropzone ───────────────────────────────── */
+    .drop {
+      width: 100%;
+      position: relative;
+      border: 1.5px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .drop:hover, .drop.over {
+      border-color: var(--accent);
+      background: rgba(167,139,250,0.04);
+    }
+    .drop input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 28px; margin-bottom: 6px; }
+    .drop-hint { font-size: 12px; color: var(--muted); }
+    .drop-sub { font-size: 10px; color: var(--muted); margin-top: 4px; opacity: 0.6; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 12px 4px 10px; font-size: 12px;
+    }
+    .pill .x {
+      background: none; color: var(--muted); border: none;
+      font-size: 14px; cursor: pointer; padding: 0; line-height: 1;
+    }
+    .pill .x:hover { color: var(--err); }
+
+    /* ── Transcript ─────────────────────────────── */
+    .transcript {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+      min-height: 44px;
+      resize: vertical;
+      font-family: inherit;
+      outline: none;
+    }
+    .transcript:focus { border-color: var(--accent); }
+    .transcript::placeholder { color: var(--muted); font-style: italic; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .pulsing { animation: pulse 1.2s ease-in-out infinite; color: var(--accent); }
+
+    /* ── Text area ──────────────────────────────── */
+    textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      min-height: 80px;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* ── Generate ───────────────────────────────── */
+    .gen {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      transition: opacity 0.15s;
+    }
+    .gen:hover:not(:disabled) { opacity: 0.9; }
+    .gen:disabled { opacity: 0.25; cursor: not-allowed; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff;
+      border-radius: 50%; animation: spin .6s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+
+    /* ── Output ─────────────────────────────────── */
+    .output {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    audio { width: 100%; height: 32px; }
+    .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 10px; color: var(--muted);
+      background: var(--border); border-radius: 8px; padding: 2px 7px;
+    }
+    .dl {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 4px 10px; border-radius: 6px; font-size: 11px;
+      cursor: pointer; align-self: flex-start;
+    }
+    .dl:hover { color: var(--text); }
+
+    /* ── Footer ─────────────────────────────────── */
+    .foot {
+      padding: 4px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--muted);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; margin-bottom: 5px; }
+  </style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="dot" id="dot"></div>
+  <div class="title">Vox<span>CPM2</span></div>
+  <div class="status" id="status">Disconnected</div>
+  <div class="spacer"></div>
+  <input id="apiUrl" value="http://localhost:8000" placeholder="API URL">
+  <button onclick="connect()">Connect</button>
+</div>
+
+<div class="content">
+
+  <div style="width:100%">
+    <div class="lbl">Reference Voice</div>
+    <div class="drop" id="dropZone"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="onDrop(event)">
+      <input type="file" accept="audio/*" id="fileInput" onchange="onPick(this)">
+      <div id="dropInner">
+        <div class="drop-icon">🎤</div>
+        <div class="drop-hint">Drop or click — reference audio</div>
+        <div class="drop-sub">5–30s clean audio, any format</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="transcriptWrap" style="width:100%;display:none">
+    <div class="lbl">Auto-Transcript <span class="pulsing" id="asrBusy" style="display:none">transcribing…</span></div>
+    <textarea class="transcript" id="transcript" rows="2" placeholder="Waiting for reference audio…" oninput="onTranscriptEdit()"></textarea>
+  </div>
+
+  <div style="width:100%">
+    <div class="lbl">Text</div>
+    <textarea id="text" rows="3" placeholder="What should the cloned voice say?" oninput="sync()"></textarea>
+  </div>
+
+  <button class="gen" id="gen" onclick="generate()" disabled>Generate</button>
+
+  <div class="output" id="out" style="display:none">
+    <div class="meta" id="meta"></div>
+    <audio id="player" controls></audio>
+    <button class="dl" onclick="dl()">↓ Download WAV</button>
+  </div>
+
+</div>
+
+<div class="foot" id="foot">Hi-Fi Cloning · steps=15 · cfg=2.0 · denoise · retry_badcase · normalize</div>
+
+<script>
+const S = {
+  connected: false,
+  asr: false,
+  ref: null,        // base64
+  transcript: null,  // auto-transcribed text
+  busy: false,       // transcription in progress
+  wav: null,         // last generated blob
+};
+
+const $ = id => document.getElementById(id);
+
+// ── Sync ──────────────────────────────────────────────
+function sync() {
+  const transcript = $('transcript').value.trim();
+  if (transcript) S.transcript = transcript;
+  const ok = S.connected
+    && $('text').value.trim()
+    && S.ref
+    && transcript
+    && !S.busy;
+  $('gen').disabled = !ok;
+}
+
+function onTranscriptEdit() {
+  S.transcript = $('transcript').value.trim() || null;
+  sync();
+}
+
+// ── Connect ───────────────────────────────────────────
+async function connect() {
+  const url = api();
+  $('dot').className = 'dot';
+  $('status').textContent = 'Connecting…';
+
+  try {
+    const [h, a] = await Promise.all([
+      fetch(url + '/health', { signal: AbortSignal.timeout(5000) }),
+      fetch(url + '/v1/asr/status', { signal: AbortSignal.timeout(5000) }).catch(() => null),
+    ]);
+    if (!h.ok) throw new Error('HTTP ' + h.status);
+
+    S.asr = a?.ok ? (await a.json()).available === true : false;
+    S.connected = true;
+    $('dot').className = 'dot ok';
+    $('status').textContent = 'Connected' + (S.asr ? '' : ' · ASR missing');
+    $('transcriptWrap').style.display = S.asr ? 'block' : 'none';
+    foot('Ready' + (S.asr ? ' — Hi-Fi Cloning with ASR' : ' — install faster-whisper for Hi-Fi'));
+  } catch (e) {
+    S.connected = false;
+    $('dot').className = 'dot err';
+    $('status').textContent = 'Failed';
+    foot('Error: ' + e.message);
+  }
+  sync();
+}
+
+// ── File handling ─────────────────────────────────────
+function onDrop(e) {
+  e.preventDefault();
+  $('dropZone').classList.remove('over');
+  const f = e.dataTransfer?.files?.[0];
+  if (f) loadFile(f);
+}
+
+function onPick(input) {
+  const f = input.files?.[0];
+  if (f) loadFile(f);
+}
+
+async function loadFile(file) {
+  const b64 = await fileToB64(file);
+  S.ref = b64;
+  S.transcript = null;
+  $('dropInner').innerHTML = `<div class="pill">🎤 <span>${file.name}</span> <button class="x" onclick="clearRef(event)">×</button></div>`;
+  if (S.asr) transcribe();
+  sync();
+}
+
+function clearRef(e) {
+  e?.stopPropagation();
+  S.ref = null;
+  S.transcript = null;
+  $('fileInput').value = '';
+  $('dropInner').innerHTML = '<div class="drop-icon">🎤</div><div class="drop-hint">Drop or click — reference audio</div><div class="drop-sub">5–30s clean audio, any format</div>';
+  $('transcript').value = '';
+  $('transcript').placeholder = 'Waiting for reference audio…';
+  sync();
+}
+
+function fileToB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ── ASR ───────────────────────────────────────────────
+async function transcribe() {
+  if (!S.ref) return;
+  S.busy = true;
+  S.transcript = null;
+  $('asrBusy').style.display = 'inline';
+  $('transcript').value = '';
+  $('transcript').placeholder = 'Transcribing…';
+  $('transcript').disabled = true;
+  foot('Transcribing reference audio…');
+  sync();
+
+  try {
+    const res = await fetch(api() + '/v1/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_base64: S.ref }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || e.error || 'HTTP ' + res.status);
+    }
+    const d = await res.json();
+    S.transcript = d.text;
+    $('transcript').value = d.text || '';
+    $('transcript').placeholder = d.text ? 'Edit transcript if needed' : '(no speech detected)';
+    foot('Transcript ready · detected: ' + d.language + ' · edit if needed');
+  } catch (e) {
+    $('transcript').value = '';
+    $('transcript').placeholder = 'Transcription failed — type transcript manually';
+    foot('ASR error: ' + e.message);
+  } finally {
+    S.busy = false;
+    $('transcript').disabled = false;
+    $('asrBusy').style.display = 'none';
+    sync();
+  }
+}
+
+// ── Generate (Hi-Fi Cloning) ──────────────────────────
+async function generate() {
+  const text = $('text').value.trim();
+  const transcript = $('transcript').value.trim();
+  if (!text || !S.ref || !transcript) return;
+
+  const btn = $('gen');
+  btn.innerHTML = '<span class="spin"></span>Generating…';
+  btn.disabled = true;
+  foot('Hi-Fi Cloning — generating…');
+
+  // Hi-Fi mode per cookbook: same audio as prompt + reference, transcript as prompt_text
+  const body = {
+    text,
+    prompt_audio_base64:    S.ref,
+    prompt_text:            transcript,
+    reference_audio_base64: S.ref,
+    cfg_value:              2.0,
+    inference_timesteps:    15,
+    normalize_text:         true,
+    denoise_conditioning_audio: true,
+    retry_badcase:          true,
+    response_format:        'base64',
+  };
+
+  try {
+    const res = await fetch(api() + '/v1/speech', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || e.error || 'HTTP ' + res.status);
+    }
+
+    const d = await res.json();
+    const wav = Uint8Array.from(atob(d.audio_base64), c => c.charCodeAt(0));
+    S.wav = new Blob([wav], { type: 'audio/wav' });
+
+    $('player').src = URL.createObjectURL(S.wav);
+    $('player').play().catch(() => {});
+    $('meta').innerHTML = [
+      `<span class="tag">hi-fi</span>`,
+      `<span class="tag">${d.backend}</span>`,
+      `<span class="tag">${d.device}</span>`,
+      `<span class="tag">${d.sample_rate}Hz</span>`,
+    ].join('');
+    $('out').style.display = 'flex';
+    foot('Done ✓');
+  } catch (e) {
+    foot('Error: ' + e.message);
+  } finally {
+    btn.textContent = 'Generate';
+    sync();
+  }
+}
+
+function dl() {
+  if (!S.wav) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(S.wav);
+  a.download = 'voxcpm2_hifi.wav';
+  a.click();
+}
+
+function api() { return $('apiUrl').value.trim().replace(/\/$/, ''); }
+function foot(m) { $('foot').textContent = m; }
+
+connect();
+</script>
+</body>
+</html>

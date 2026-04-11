@@ -10,12 +10,16 @@ from pydantic import ValidationError
 from voxcpm2_api.audio import waveform_chunk_to_base64, waveform_to_base64, waveform_to_wav_bytes
 from voxcpm2_api.config import Settings, get_settings
 from voxcpm2_api.runtime.factory import RuntimeOrchestrator, configure_environment
+from voxcpm2_api.asr import ASRService, is_available as asr_is_available
 from voxcpm2_api.schemas import (
     ErrorEnvelope,
     RuntimeResponse,
     StreamingSynthesisRequest,
     SynthesisRequest,
     SynthesisResponse,
+    TranscribeRequest,
+    TranscribeResponse,
+    TranscribeSegment,
 )
 from voxcpm2_api.service import prepare_audio_assets
 
@@ -32,6 +36,7 @@ def create_app(
         runtime = orchestrator or RuntimeOrchestrator(resolved_settings)
         app.state.settings = resolved_settings
         app.state.runtime = runtime
+        app.state.asr = ASRService() if asr_is_available() else None
         if resolved_settings.startup_load_model:
             await runtime.warmup()
         try:
@@ -49,6 +54,7 @@ def create_app(
     )
 
     @app.get("/health")
+    @app.get("/api/status")
     async def health() -> dict[str, object]:
         runtime: RuntimeOrchestrator = app.state.runtime
         snapshot = runtime.runtime_snapshot()
@@ -69,7 +75,13 @@ def create_app(
                 ).model_dump(),
             )
 
-        assets = prepare_audio_assets(request)
+        try:
+            assets = prepare_audio_assets(request)
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorEnvelope(error="validation_error", detail=str(exc)).model_dump(),
+            )
         try:
             result = await app.state.runtime.synthesize(request, assets)
         except RuntimeError as exc:
@@ -138,6 +150,10 @@ def create_app(
             await websocket.send_json(
                 {"type": "error", "error": "validation_error", "detail": str(exc)}
             )
+        except ValueError as exc:
+            await websocket.send_json(
+                {"type": "error", "error": "validation_error", "detail": str(exc)}
+            )
         except RuntimeError as exc:
             await websocket.send_json(
                 {"type": "error", "error": "runtime_unavailable", "detail": str(exc)}
@@ -146,6 +162,43 @@ def create_app(
             return
         finally:
             await websocket.close()
+
+    @app.get("/v1/asr/status")
+    async def asr_status() -> dict[str, object]:
+        return {"available": app.state.asr is not None}
+
+    @app.post(
+        "/v1/transcribe",
+        response_model=TranscribeResponse,
+        responses={503: {"model": ErrorEnvelope}},
+    )
+    async def transcribe(request: TranscribeRequest):
+        asr: ASRService | None = app.state.asr
+        if asr is None:
+            return JSONResponse(
+                status_code=503,
+                content=ErrorEnvelope(
+                    error="asr_unavailable",
+                    detail="Install faster-whisper: pip install faster-whisper",
+                ).model_dump(),
+            )
+        try:
+            result = await asr.transcribe(
+                audio_base64=request.audio_base64,
+                language=request.language,
+            )
+        except Exception as exc:
+            return JSONResponse(
+                status_code=500,
+                content=ErrorEnvelope(error="transcription_failed", detail=str(exc)).model_dump(),
+            )
+        return TranscribeResponse(
+            text=result.text,
+            language=result.language,
+            segments=[
+                TranscribeSegment(start=s.start, end=s.end, text=s.text) for s in result.segments
+            ],
+        )
 
     return app
 

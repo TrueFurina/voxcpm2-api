@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxcpm2-compat"
+version = "0.2.0"
+description = "Standalone macOS and CPU compatibility patches for VoxCPM2 on PyTorch"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-only"
+authors = [
+  { name = "Shiftbloom Studio" }
+]
+keywords = ["voxcpm2", "torch", "macos", "mps", "compatibility"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://github.com/fabianzimber/voxcpm2-api"
+Repository = "https://github.com/fabianzimber/voxcpm2-api"
+Issues = "https://github.com/fabianzimber/voxcpm2-api/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -56,6 +56,31 @@ def test_json_synthesis_response() -> None:
     assert response.json()["backend"] == "voxcpm"
 
 
+def test_health_alias_status_endpoint() -> None:
+    app = create_app(settings=Settings(), orchestrator=FakeRuntime())
+    with TestClient(app) as client:
+        response = client.get("/api/status")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_invalid_prompt_audio_returns_422() -> None:
+    app = create_app(settings=Settings(), orchestrator=FakeRuntime())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/speech",
+            json={
+                "text": "hello",
+                "prompt_text": "context",
+                "prompt_audio_base64": "not-valid-base64",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == "validation_error"
+
+
 def test_websocket_stream() -> None:
     app = create_app(settings=Settings(), orchestrator=FakeRuntime())
     with TestClient(app) as client:

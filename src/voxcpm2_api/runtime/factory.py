@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 
+from voxcpm2_api.compat import apply_torch_compat_patches
 from voxcpm2_api.config import Settings
 from voxcpm2_api.hardware import detect_hardware
 from voxcpm2_api.runtime.base import SynthesisBackend, StreamChunk, SynthesisResult
@@ -95,5 +96,6 @@ class RuntimeOrchestrator:
 
 
 def configure_environment(settings: Settings) -> None:
+    apply_torch_compat_patches()
     if settings.hf_endpoint:
         os.environ["HF_ENDPOINT"] = settings.hf_endpoint

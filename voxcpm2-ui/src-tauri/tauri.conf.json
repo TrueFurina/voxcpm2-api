@@ -1,0 +1,39 @@
+{
+  "productName": "VoxCPM2",
+  "version": "0.2.0",
+  "identifier": "studio.shiftbloom.voxcpm2",
+  "build": {
+    "beforeDevCommand": "bash -lc 'if [ -f index.html ]; then ROOT=.; elif [ -f ../index.html ]; then ROOT=..; else echo \"index.html not found\"; exit 1; fi; mkdir -p \"$ROOT/dist\"; cp \"$ROOT/index.html\" \"$ROOT/dist/index.html\"'",
+    "beforeBuildCommand": "bash -lc 'if [ -f index.html ]; then ROOT=.; elif [ -f ../index.html ]; then ROOT=..; else echo \"index.html not found\"; exit 1; fi; mkdir -p \"$ROOT/dist\"; cp \"$ROOT/index.html\" \"$ROOT/dist/index.html\"'",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "VoxCPM2",
+        "width": 920,
+        "height": 700,
+        "minWidth": 700,
+        "minHeight": 500,
+        "resizable": true,
+        "center": true,
+        "titleBarStyle": "Overlay"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ]
+  }
+}
