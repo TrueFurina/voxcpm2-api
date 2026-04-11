@@ -36,13 +36,13 @@ class RuntimeOrchestrator:
             selected_backend_name = self._select_backend(probe_request).name
         except RuntimeError:
             selected_backend_name = "unavailable"
-        status = {
-            name: {
-                "available": backend.availability().available,
-                "reason": backend.availability().reason,
+        status = {}
+        for name, backend in self._backends.items():
+            availability = backend.availability()
+            status[name] = {
+                "available": availability.available,
+                "reason": availability.reason,
             }
-            for name, backend in self._backends.items()
-        }
         return RuntimeResponse(
             selected_backend=selected_backend_name,
             requested_backend=self._settings.prefer_backend,

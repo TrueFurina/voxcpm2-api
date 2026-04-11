@@ -7,6 +7,8 @@ from pathlib import Path
 from voxcpm2_api.audio import decode_base64_audio
 from voxcpm2_api.schemas import SynthesisRequest
 
+_MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB decoded limit
+
 
 @dataclass(slots=True)
 class PreparedAudioAssets:
@@ -36,6 +38,10 @@ def prepare_audio_assets(request: SynthesisRequest) -> PreparedAudioAssets:
 
 def _write_temp_wav(raw_base64: str, temp_paths: list[Path]) -> str:
     payload = decode_base64_audio(raw_base64)
+    if len(payload) > _MAX_AUDIO_BYTES:
+        raise ValueError(
+            f"Decoded audio exceeds the maximum allowed size of {_MAX_AUDIO_BYTES} bytes"
+        )
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     try:
         temp_file.write(payload)

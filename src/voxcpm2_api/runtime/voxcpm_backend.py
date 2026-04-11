@@ -102,7 +102,7 @@ class VoxCPMBackend(SynthesisBackend):
     ) -> AsyncIterator[StreamChunk]:
         model = await self._ensure_model()
         loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[StreamChunk | Exception | None] = asyncio.Queue()
+        queue: asyncio.Queue[StreamChunk | Exception | None] = asyncio.Queue(maxsize=4)
         kwargs = self._build_generation_kwargs(request, assets)
 
         logger.info("streaming start — text=%d chars", len(request.text))
@@ -122,13 +122,15 @@ class VoxCPMBackend(SynthesisBackend):
                         sequence=sequence,
                         waveform=to_numpy_audio(chunk),
                     )
-                    loop.call_soon_threadsafe(queue.put_nowait, payload)
+                    future = asyncio.run_coroutine_threadsafe(queue.put(payload), loop)
+                    future.result()
                 total = time.perf_counter() - t0
                 logger.info("streaming done — %.2fs total", total)
-                loop.call_soon_threadsafe(queue.put_nowait, None)
+                future = asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+                future.result()
             except Exception as exc:
                 logger.error("streaming failed: %s", exc, exc_info=True)
-                loop.call_soon_threadsafe(queue.put_nowait, exc)
+                asyncio.run_coroutine_threadsafe(queue.put(exc), loop).result()
 
         threading.Thread(target=_worker, daemon=True).start()
 
