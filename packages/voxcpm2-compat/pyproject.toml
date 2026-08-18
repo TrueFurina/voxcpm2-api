@@ -27,9 +27,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/fabianzimber/voxcpm2-api"
-Repository = "https://github.com/fabianzimber/voxcpm2-api"
-Issues = "https://github.com/fabianzimber/voxcpm2-api/issues"
+Homepage = "https://github.com/shiftbloom-studio/voxcpm2-api"
+Repository = "https://github.com/shiftbloom-studio/voxcpm2-api"
+Issues = "https://github.com/shiftbloom-studio/voxcpm2-api/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

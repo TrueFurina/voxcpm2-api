@@ -1,7 +1,7 @@
 # VoxCPM2 API
 
-[![CI](https://github.com/fabianzimber/voxcpm2-api/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianzimber/voxcpm2-api/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/fabianzimber/voxcpm2-api)](https://github.com/fabianzimber/voxcpm2-api/releases)
+[![CI](https://github.com/shiftbloom-studio/voxcpm2-api/actions/workflows/ci.yml/badge.svg)](https://github.com/shiftbloom-studio/voxcpm2-api/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/shiftbloom-studio/voxcpm2-api)](https://github.com/shiftbloom-studio/voxcpm2-api/releases)
 
 Production-ready FastAPI and WebSocket service for [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2), with:
 
@@ -31,13 +31,13 @@ Every tagged release publishes three separate artifact families:
 Install the API directly from a release asset:
 
 ```bash
-pip install "voxcpm2-api[voxcpm] @ https://github.com/fabianzimber/voxcpm2-api/releases/download/v0.2.0/voxcpm2_api-0.2.0-py3-none-any.whl"
+pip install "voxcpm2-api[voxcpm] @ https://github.com/shiftbloom-studio/voxcpm2-api/releases/download/v0.2.0/voxcpm2_api-0.2.0-py3-none-any.whl"
 ```
 
 If you only want the compatibility wrapper for your own VoxCPM2 code:
 
 ```bash
-pip install "voxcpm2-compat @ https://github.com/fabianzimber/voxcpm2-api/releases/download/v0.2.0/voxcpm2_compat-0.2.0-py3-none-any.whl"
+pip install "voxcpm2-compat @ https://github.com/shiftbloom-studio/voxcpm2-api/releases/download/v0.2.0/voxcpm2_compat-0.2.0-py3-none-any.whl"
 ```
 
 ### From source

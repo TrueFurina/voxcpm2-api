@@ -36,10 +36,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/fabianzimber/voxcpm2-api"
-Repository = "https://github.com/fabianzimber/voxcpm2-api"
-Issues = "https://github.com/fabianzimber/voxcpm2-api/issues"
-Changelog = "https://github.com/fabianzimber/voxcpm2-api/releases"
+Homepage = "https://github.com/shiftbloom-studio/voxcpm2-api"
+Repository = "https://github.com/shiftbloom-studio/voxcpm2-api"
+Issues = "https://github.com/shiftbloom-studio/voxcpm2-api/issues"
+Changelog = "https://github.com/shiftbloom-studio/voxcpm2-api/releases"
 
 [project.optional-dependencies]
 voxcpm = [
