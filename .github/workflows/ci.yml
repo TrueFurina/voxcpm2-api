@@ -50,6 +50,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
@@ -59,6 +63,16 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked --version "^2.0"
 
+      - name: Build embedded macOS API bundle
+        run: ./scripts/build-macos-embedded-api.sh
+
       - name: Build desktop bundle
         working-directory: voxcpm2-ui/src-tauri
         run: cargo tauri build --bundles app
+
+      - name: Build desktop DMG
+        run: |
+          ./scripts/build-macos-dmg.sh \
+            "voxcpm2-ui/src-tauri/target/release/bundle/macos/VoxCPM2.app" \
+            "voxcpm2-ui/src-tauri/target/release/bundle/dmg/VoxCPM2-ci.dmg" \
+            "VoxCPM2"

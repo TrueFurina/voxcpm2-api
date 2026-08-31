@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import logging
+import platform
 import threading
 import time
 from typing import AsyncIterator
@@ -189,7 +190,13 @@ class VoxCPMBackend(SynthesisBackend):
                 logger.info("model loaded in %.2fs on device=%s, optimize=%s", elapsed, device, optimize)
                 return m
 
-            self._model = await asyncio.to_thread(_load)
+            if platform.system() == "Darwin":
+                logger.info(
+                    "loading VoxCPM2 inline on macOS to avoid libomp/PyTorch segfaults during initialization"
+                )
+                self._model = _load()
+            else:
+                self._model = await asyncio.to_thread(_load)
             return self._model
 
     def _build_generation_kwargs(
