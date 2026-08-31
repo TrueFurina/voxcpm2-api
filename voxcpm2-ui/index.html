@@ -204,7 +204,7 @@
   <div class="title">Vox<span>CPM2</span></div>
   <div class="status" id="status">Disconnected</div>
   <div class="spacer"></div>
-  <input id="apiUrl" value="http://localhost:8000" placeholder="API URL">
+  <input id="apiUrl" placeholder="API URL">
   <button onclick="connect()">Connect</button>
 </div>
 
@@ -257,7 +257,22 @@ const S = {
   wav: null,         // last generated blob
 };
 
+const DESKTOP_LOCAL_API = 'http://127.0.0.1:4000';
+const DEFAULT_EXTERNAL_API = 'http://127.0.0.1:8000';
+
 const $ = id => document.getElementById(id);
+
+function isDesktopApp() {
+  return Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);
+}
+
+function defaultApiUrl() {
+  return isDesktopApp() ? DESKTOP_LOCAL_API : DEFAULT_EXTERNAL_API;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // ── Sync ──────────────────────────────────────────────
 function sync() {
@@ -277,30 +292,51 @@ function onTranscriptEdit() {
 }
 
 // ── Connect ───────────────────────────────────────────
-async function connect() {
+async function connect({ retryMs = 0, startup = false } = {}) {
   const url = api();
+  const deadline = Date.now() + retryMs;
+  let lastError = new Error('Connection failed');
+
   $('dot').className = 'dot';
-  $('status').textContent = 'Connecting…';
+  $('status').textContent = startup ? 'Starting local API…' : 'Connecting…';
 
-  try {
-    const [h, a] = await Promise.all([
-      fetch(url + '/health', { signal: AbortSignal.timeout(5000) }),
-      fetch(url + '/v1/asr/status', { signal: AbortSignal.timeout(5000) }).catch(() => null),
-    ]);
-    if (!h.ok) throw new Error('HTTP ' + h.status);
+  while (true) {
+    try {
+      const [h, a] = await Promise.all([
+        fetch(url + '/health', { signal: AbortSignal.timeout(5000) }),
+        fetch(url + '/v1/asr/status', { signal: AbortSignal.timeout(5000) }).catch(() => null),
+      ]);
+      if (!h.ok) throw new Error('HTTP ' + h.status);
 
-    S.asr = a?.ok ? (await a.json()).available === true : false;
-    S.connected = true;
-    $('dot').className = 'dot ok';
-    $('status').textContent = 'Connected' + (S.asr ? '' : ' · ASR missing');
-    $('transcriptWrap').style.display = S.asr ? 'block' : 'none';
-    foot('Ready' + (S.asr ? ' — Hi-Fi Cloning with ASR' : ' — install faster-whisper for Hi-Fi'));
-  } catch (e) {
-    S.connected = false;
-    $('dot').className = 'dot err';
-    $('status').textContent = 'Failed';
-    foot('Error: ' + e.message);
+      S.asr = a?.ok ? (await a.json()).available === true : false;
+      S.connected = true;
+      $('dot').className = 'dot ok';
+      $('status').textContent = 'Connected' + (S.asr ? '' : ' · ASR missing');
+      $('transcriptWrap').style.display = S.asr ? 'block' : 'none';
+      foot(
+        startup
+          ? 'Bundled API ready on 127.0.0.1:4000'
+          : 'Ready' + (S.asr ? ' — Hi-Fi Cloning with ASR' : ' — install faster-whisper for Hi-Fi')
+      );
+      sync();
+      return;
+    } catch (e) {
+      lastError = e;
+      if (Date.now() >= deadline) break;
+      $('status').textContent = startup ? 'Starting local API…' : 'Retrying…';
+      await sleep(750);
+    }
   }
+
+  S.connected = false;
+  $('dot').className = 'dot err';
+  $('status').textContent = 'Failed';
+  $('transcriptWrap').style.display = 'none';
+  foot(
+    startup
+      ? `Bundled API not reachable on 127.0.0.1:4000 — connect manually if needed (${lastError.message})`
+      : 'Error: ' + lastError.message
+  );
   sync();
 }
 
@@ -454,7 +490,16 @@ function dl() {
 function api() { return $('apiUrl').value.trim().replace(/\/$/, ''); }
 function foot(m) { $('foot').textContent = m; }
 
-connect();
+async function boot() {
+  $('apiUrl').value = defaultApiUrl();
+  if (isDesktopApp()) {
+    await connect({ retryMs: 15000, startup: true });
+  } else {
+    await connect();
+  }
+}
+
+boot();
 </script>
 </body>
 </html>

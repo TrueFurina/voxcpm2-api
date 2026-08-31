@@ -18,6 +18,11 @@ def prepare_process_environment() -> None:
 
     if platform.system() == "Darwin":
         os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        os.environ.setdefault("OMP_THREAD_LIMIT", "1")
+        os.environ.setdefault("MKL_NUM_THREADS", "1")
+        os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+        os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
         os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
         os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 

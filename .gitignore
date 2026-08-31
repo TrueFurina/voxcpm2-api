@@ -15,5 +15,7 @@ htmlcov/
 wheelhouse/
 voxcpm2-ui/dist/
 voxcpm2-ui/src-tauri/target/
+voxcpm2-ui/src-tauri/resources/api-macos/*
+!voxcpm2-ui/src-tauri/resources/api-macos/.gitkeep
 release-assets/
 .env

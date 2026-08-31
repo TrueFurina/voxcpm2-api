@@ -40,6 +40,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
@@ -49,6 +53,9 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked --version "^2.0"
 
+      - name: Build embedded macOS API bundle
+        run: ./scripts/build-macos-embedded-api.sh
+
       - name: Install Rust target info
         run: rustc -vV
 
@@ -56,11 +63,22 @@ jobs:
         working-directory: voxcpm2-ui/src-tauri
         run: cargo tauri build --bundles app
 
-      - name: Archive Tauri app
-        working-directory: voxcpm2-ui/src-tauri
+      - name: Archive macOS app artifacts
         run: |
-          mkdir -p ../../release-assets/tauri
-          ditto -c -k --sequesterRsrc --keepParent "target/release/bundle/macos/VoxCPM2.app" "../../release-assets/tauri/VoxCPM2-ui-macos-${{ github.ref_name }}-${{ runner.arch }}.zip"
+          mkdir -p release-assets/tauri
+          VERSION_TAG="${GITHUB_REF_NAME}"
+          ARCH="$(uname -m)"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "voxcpm2-ui/src-tauri/target/release/bundle/macos/VoxCPM2.app" \
+            "release-assets/tauri/VoxCPM2-ui-macos-${VERSION_TAG}-${ARCH}.zip"
+          ./scripts/build-macos-dmg.sh \
+            "voxcpm2-ui/src-tauri/target/release/bundle/macos/VoxCPM2.app" \
+            "release-assets/tauri/VoxCPM2-ui-macos-${VERSION_TAG}-${ARCH}.dmg" \
+            "VoxCPM2"
+          tar -czf \
+            "release-assets/tauri/voxcpm2_api_macos-${VERSION_TAG}-${ARCH}.tar.gz" \
+            -C "voxcpm2-ui/src-tauri/resources/api-macos" \
+            voxcpm2-api
 
       - name: Upload Tauri build output
         uses: actions/upload-artifact@v4

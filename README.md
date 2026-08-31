@@ -21,8 +21,12 @@ Every tagged release publishes three separate artifact families:
   The API package with FastAPI, WebSocket endpoints, Docker support, and the built-in compatibility layer.
 - `voxcpm2_compat-<version>-py3-none-any.whl`
   The standalone compatibility wrapper for custom Python integrations that need the macOS and CPU safety patches without the API service.
+- `voxcpm2_api_macos-<tag>-<arch>.tar.gz`
+  A standalone macOS embedded API bundle for local packaging or custom launchers.
 - `VoxCPM2-ui-macos-<tag>-<arch>.zip`
-  The Tauri desktop application bundle for macOS.
+  The macOS `.app` bundle for the Tauri desktop client.
+- `VoxCPM2-ui-macos-<tag>-<arch>.dmg`
+  The drag-and-drop macOS installer for the desktop client.
 
 ## Installation
 
@@ -172,7 +176,19 @@ curl -X POST http://localhost:8000/v1/transcribe \
 
 ## Desktop Client
 
-The repository also contains a Tauri desktop app in [`./voxcpm2-ui`](./voxcpm2-ui). Tagged releases attach a macOS bundle ZIP so the UI can be downloaded without building Rust locally.
+The repository also contains a Tauri desktop app in [`./voxcpm2-ui`](./voxcpm2-ui).
+
+On packaged macOS builds:
+
+- the app auto-starts its bundled local API on `http://127.0.0.1:4000`
+- the top `Connect` field still lets you switch to any other API, for example a manually started development server on `http://127.0.0.1:8000`
+- the desktop bundle does not require a preinstalled Python environment
+
+For local packaging or release verification, build the embedded API bundle first:
+
+```bash
+./scripts/build-macos-embedded-api.sh
+```
 
 Local development:
 
@@ -211,7 +227,9 @@ CI runs on GitHub Actions for Linux and macOS. Tagged releases automatically pub
 
 - the API wheel and sdist
 - the standalone compatibility wheel and sdist
-- the macOS Tauri desktop bundle
+- the standalone macOS embedded API bundle
+- the macOS Tauri desktop `.app` ZIP
+- the macOS Tauri desktop `.dmg`
 
 ## License
 
